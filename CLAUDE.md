@@ -11,8 +11,12 @@ n8n workflow automation for L.A. Dolce Vita screenplay deduplication and classif
 - Use descriptive node names with consistent naming: "NodePurpose-###"
 - Console logging for all checkpoint operations
 - **REQUIRED**: All workflow iterations must have timestamp in BOTH filename AND internal workflow name
-- Timestamp format: YYYYMMDD_HHMM_filename.json
-- Example: 20251222_1530_screenplay_classifier.json with workflow name "Screenplay Classifier - 20251222_1530"
+- **Timestamp**: Use Eastern Standard Time (EST/New York time)
+- **Naming format**: `YYYYMMDD_HHMM_GDRIVE_Dedup_Ollama_vXXX.json`
+- **Workflow name format**: `"GDRIVE Dedup Ollama - vXXX - YYYYMMDD_HHMM"`
+- Example:
+  - File: `20251222_1055_GDRIVE_Dedup_Ollama_v001.json`
+  - Name: `"GDRIVE Dedup Ollama - v001 - 20251222_1055"`
 
 ### Communication
 - Direct, actionable solutions - no theoretical discussions
