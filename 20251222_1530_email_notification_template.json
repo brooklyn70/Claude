@@ -1,0 +1,155 @@
+{
+  "name": "Email Notification Template - 20251222_1530",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// YOUR WORKFLOW LOGIC HERE\n// This is a placeholder for your actual workflow processing\n\nconst items = $input.all();\n\n// Example: throw an error to test email notification\n// throw new Error('Test error - this will trigger email notification');\n\n// Your actual processing code goes here\nconst results = items.map(item => ({\n  json: {\n    ...item.json,\n    processed: true,\n    timestamp: new Date().toISOString()\n  }\n}));\n\nreturn results;"
+      },
+      "id": "main-processing-002",
+      "name": "MainProcessing-002",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger-901",
+      "name": "ErrorTrigger-901",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 500]
+    },
+    {
+      "parameters": {
+        "filePath": "/home/node/.n8n/checkpoint_{{ $workflow.id }}.json",
+        "options": {}
+      },
+      "id": "read-checkpoint-902",
+      "name": "ReadCheckpoint-902",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [460, 500],
+      "continueOnFail": true,
+      "notes": "Attempts to read checkpoint file if it exists"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Generate timestamp\nconst timestamp = new Date().toISOString();\nconst timestampFormatted = timestamp.replace('T', ' ').split('.')[0];\n\n// Get workflow information\nconst workflowName = $workflow.name || 'Unknown Workflow';\nconst workflowId = $workflow.id || 'N/A';\nconst executionId = $execution.id || 'N/A';\n\n// Extract error details from Error Trigger\nconst errorData = $('ErrorTrigger-901').first().json;\nconst errorNode = errorData.node?.name || 'Unknown Node';\nconst errorMessage = errorData.error?.message || 'No error message available';\nconst errorStack = errorData.error?.stack || 'No stack trace available';\n\n// Try to get checkpoint data from previous node\nlet checkpointData = 'No checkpoint data available';\ntry {\n  const checkpointNode = $('ReadCheckpoint-902').first();\n  if (checkpointNode && checkpointNode.binary && checkpointNode.binary.data) {\n    const buffer = Buffer.from(checkpointNode.binary.data.data);\n    checkpointData = buffer.toString('utf8');\n  }\n} catch (e) {\n  checkpointData = `Checkpoint read error: ${e.message}`;\n}\n\n// Get all execution data for comprehensive logging\nconst executionData = JSON.stringify(errorData, null, 2);\n\n// Format the complete error log\nconst emailSubject = `🚨 n8n Workflow Failed: ${workflowName} - ${timestampFormatted}`;\n\nconst emailBody = `\n═══════════════════════════════════════════════════════════\nn8n WORKFLOW EXECUTION FAILURE REPORT\n═══════════════════════════════════════════════════════════\n\nWorkflow Name: ${workflowName}\nWorkflow ID: ${workflowId}\nExecution ID: ${executionId}\nFailure Time: ${timestampFormatted}\n\n───────────────────────────────────────────────────────────\nFAILED NODE\n───────────────────────────────────────────────────────────\n${errorNode}\n\n───────────────────────────────────────────────────────────\nERROR MESSAGE\n───────────────────────────────────────────────────────────\n${errorMessage}\n\n───────────────────────────────────────────────────────────\nSTACK TRACE\n───────────────────────────────────────────────────────────\n${errorStack}\n\n───────────────────────────────────────────────────────────\nCHECKPOINT DATA\n───────────────────────────────────────────────────────────\n${checkpointData}\n\n───────────────────────────────────────────────────────────\nFULL EXECUTION DATA\n───────────────────────────────────────────────────────────\n${executionData}\n\n═══════════════════════════════════════════════════════════\nDEBUGGING INSTRUCTIONS\n═══════════════════════════════════════════════════════════\n\n1. Copy this ENTIRE email (Ctrl+A, Ctrl+C)\n2. Send it to Claude Code with message: \"analyze and fix\"\n3. Claude will:\n   - Identify the root cause\n   - Provide specific code fixes\n   - Update the workflow JSON\n   - Handle checkpoint recovery if needed\n\n4. If workflow was checkpointing:\n   - Check checkpoint data above for last successful item\n   - Resume from that point after fixes applied\n\n═══════════════════════════════════════════════════════════\n`;\n\nreturn [{\n  json: {\n    subject: emailSubject,\n    body: emailBody,\n    timestamp: timestamp,\n    workflowName: workflowName,\n    executionId: executionId\n  }\n}];"
+      },
+      "id": "format-error-log-903",
+      "name": "FormatErrorLog-903",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 500],
+      "notes": "Formats comprehensive error report for email"
+    },
+    {
+      "parameters": {
+        "fromEmail": "n8n-bot@example.com",
+        "toEmail": "YOUR_EMAIL@example.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "send-error-email-904",
+      "name": "SendErrorEmail-904",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [900, 500],
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "name": "Your SMTP Account"
+        }
+      },
+      "notes": "CONFIGURE: Update toEmail and SMTP credentials"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log successful email send\nconst timestamp = new Date().toISOString();\nconsole.log(`[${timestamp}] Error notification email sent successfully`);\nconsole.log(`Execution ID: ${$('FormatErrorLog-903').first().json.executionId}`);\n\nreturn [{\n  json: {\n    emailSent: true,\n    timestamp: timestamp\n  }\n}];"
+      },
+      "id": "log-email-sent-905",
+      "name": "LogEmailSent-905",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 500],
+      "notes": "Confirms email notification sent"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "MainProcessing-002",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ErrorTrigger-901": {
+      "main": [
+        [
+          {
+            "node": "ReadCheckpoint-902",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ReadCheckpoint-902": {
+      "main": [
+        [
+          {
+            "node": "FormatErrorLog-903",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatErrorLog-903": {
+      "main": [
+        [
+          {
+            "node": "SendErrorEmail-904",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendErrorEmail-904": {
+      "main": [
+        [
+          {
+            "node": "LogEmailSent-905",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-12-22T15:30:00.000Z",
+  "versionId": "1"
+}
