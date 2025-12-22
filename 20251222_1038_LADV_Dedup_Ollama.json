@@ -616,8 +616,8 @@
       ],
       "credentials": {
         "smtp": {
-          "id": "YOUR_SMTP_CREDENTIAL_ID",
-          "name": "Your SMTP Account"
+          "id": "BCF4K8oByV2ljP0e",
+          "name": "Gmail SMTP"
         }
       }
     },
