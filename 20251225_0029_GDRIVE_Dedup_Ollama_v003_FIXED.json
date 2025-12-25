@@ -631,7 +631,7 @@
         "conditions": {
           "number": [
             {
-              "value1": "={{ $('Count Checkpoint Progress').first().json[0]?.total || 0 }}",
+              "value1": "={{ $json[0].total }}",
               "operation": "modulo",
               "value2": 500,
               "output": 0
