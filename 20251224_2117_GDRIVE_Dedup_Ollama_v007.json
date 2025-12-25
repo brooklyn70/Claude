@@ -1,5 +1,5 @@
 {
-  "name": "GDRIVE Dedup Ollama - v006",
+  "name": "GDRIVE Dedup Ollama - v007",
   "nodes": [
     {
       "parameters": {},
@@ -631,7 +631,7 @@
         "conditions": {
           "number": [
             {
-              "value1": "={{ $('Count Checkpoint Progress').first().json[0].total }}",
+              "value1": "={{ $('Count Checkpoint Progress').first().json.total }}",
               "operation": "modulo",
               "value2": 5000,
               "output": 0
@@ -654,7 +654,7 @@
         "toEmail": "mac.caruso@gmail.com",
         "subject": "=📊 n8n Progress Update - GDRIVE Dedup",
         "emailFormat": "text",
-        "text": "=Progress checkpoint reached!\n\nWorkflow: {{ $workflow.name }}\nItems processed: {{ $('Count Checkpoint Progress').first().json[0].total }}\nTimestamp: {{ $now.format('yyyy-MM-dd HH:mm:ss') }}\n\nWorkflow is still running...",
+        "text": "=Progress checkpoint reached!\n\nWorkflow: {{ $workflow.name }}\nItems processed: {{ $('Count Checkpoint Progress').first().json.total }}\nTimestamp: {{ $now.format('yyyy-MM-dd HH:mm:ss') }}\n\nWorkflow is still running...",
         "options": {}
       },
       "id": "8f4a6e2d-9c1b-4f8e-a5d7-3e8f9a1b2c3d",

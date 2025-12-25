@@ -31,7 +31,8 @@ When creating/updating workflow files:
    - v003: First fix attempt
    - v004: Email/checkpoint fixes
    - v005: Postgres array structure fix, email frequency 5000
-   - v006: Current (CAST COUNT as INTEGER for proper data type)
+   - v006: CAST COUNT as INTEGER for proper data type
+   - v007: Current (Remove [0] array index - Postgres returns single row directly)
    - ALWAYS increment - never reuse version numbers
 
 4. **Before committing ANY workflow file:**
