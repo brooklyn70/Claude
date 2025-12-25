@@ -1,5 +1,5 @@
 {
-  "name": "GDRIVE Dedup Ollama - v013",
+  "name": "GDRIVE Dedup Ollama - v014",
   "nodes": [
     {
       "parameters": {},
@@ -955,6 +955,11 @@
         [
           {
             "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Count Checkpoint Progress",
             "type": "main",
             "index": 0
           }
