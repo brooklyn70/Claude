@@ -38,7 +38,7 @@ When creating/updating workflow files:
    - v010: Parallel flow - Continue with Data splits to both Count+Log, classification data continues loop
    - v011: Side branch pattern - Count/IF/Email branch from Prepare Checkpoint, removed Log Progress
    - v012: Removed progress emails entirely - caused Gmail lockout and spam
-   - v013: Current (Fixed empty docs - Parse Classification now always includes paragraphText, added comprehensive logging)
+   - v013: Current (Clean architecture refactor - in-memory aggregation for docs, DB only for resume)
    - ALWAYS increment - never reuse version numbers
 
 4. **Before committing ANY workflow file:**
