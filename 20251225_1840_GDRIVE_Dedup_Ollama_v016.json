@@ -1,0 +1,1094 @@
+{
+  "name": "GDRIVE Dedup Ollama - v016",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "2aedcefd-4eed-40b1-b89b-b24dc60e42e4",
+      "name": "Start Workflow",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -992,
+        1152
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Checkpoints will be preserved for resume\n-- To start fresh: manually DELETE FROM workflow_checkpoints WHERE workflow_id = 'ladv_dedup'\nSELECT 'Checkpoints preserved for resume' as status",
+        "options": {}
+      },
+      "id": "d7150d25-df43-4375-aac3-14e636904dba",
+      "name": "Preserve Checkpoints",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        -880,
+        1152
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "7S40nair3YAmDIyt",
+          "name": "Postgres account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "returnAll": true,
+        "filter": {
+          "driveId": {
+            "__rl": true,
+            "mode": "list",
+            "value": "My Drive"
+          },
+          "folderId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "1d6Ku8jnaqoXiAuE4s_jjJ9MU-v4ZhfrC"
+          }
+        },
+        "options": {}
+      },
+      "id": "29fcca64-a6e9-4630-bff8-6b3a02252926",
+      "name": "List Source Files",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        -768,
+        1152
+      ],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst filtered = items.filter(item => {\n  const name = (item.json.name || '').toLowerCase();\n  return !['.pdf','.jpg','.jpeg','.png','.gif','.mp4','.xlsx','.csv'].some(ext => name.endsWith(ext));\n});\nconsole.log('Files to process:', filtered.length, 'of', items.length);\nreturn filtered;"
+      },
+      "id": "507d143a-c4f2-43f1-9cba-79cdb94227f4",
+      "name": "Filter Docs Only",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -560,
+        1152
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "eb999218-9ba0-4ef4-910b-bda35d037b8a",
+      "name": "Loop Files",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        -336,
+        1152
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "text/plain"
+            }
+          }
+        }
+      },
+      "id": "e3099c96-86fc-4ddd-883a-40016d7985c5",
+      "name": "Download File",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        -112,
+        1040
+      ],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "id": "ed146fec-e28b-410e-bf31-8ec0d4c3d140",
+      "name": "Extract Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [
+        112,
+        1040
+      ],
+      "typeVersion": 1,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst loopItem = $('Loop Files').first().json;\nconst content = item.json?.data || '';\n\nif (!content || content.length < 10) {\n  console.log('Skipping empty file:', loopItem.name);\n  return [];\n}\n\n// Split into paragraphs\nconst paragraphs = content\n  .split(/\\n\\s*\\n/)\n  .map(p => p.trim())\n  .filter(p => p.length > 50);\n\nconsole.log('Extracted', paragraphs.length, 'paragraphs from', loopItem.name);\n\nreturn paragraphs.map((para, idx) => ({\n  json: {\n    sourceFile: loopItem.name,\n    fileId: loopItem.id,\n    paragraphIndex: idx,\n    paragraphText: para,\n    paragraphLength: para.length\n  }\n}));"
+      },
+      "id": "3bdf1b87-30b8-4995-a46c-ca4556d162f6",
+      "name": "Split to Paragraphs",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        336,
+        1040
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "b8c7b31a-7a06-4c94-b8ef-638ac77e8e29",
+      "name": "Collect All Paragraphs",
+      "type": "n8n-nodes-base.aggregate",
+      "position": [
+        -112,
+        1248
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "const allData = $input.first().json.data || [];\nconsole.log('Starting JS deduplication on', allData.length, 'paragraphs');\n\nfunction areSimilar(str1, str2, threshold = 0.9) {\n  const len1 = str1.length;\n  const len2 = str2.length;\n  const maxLen = Math.max(len1, len2);\n  \n  if (Math.abs(len1 - len2) / maxLen > (1 - threshold)) return false;\n  \n  const words1 = new Set(str1.toLowerCase().split(/\\s+/));\n  const words2 = new Set(str2.toLowerCase().split(/\\s+/));\n  \n  const intersection = new Set([...words1].filter(w => words2.has(w)));\n  const union = new Set([...words1, ...words2]);\n  \n  const similarity = intersection.size / union.size;\n  return similarity >= threshold;\n}\n\nconst uniqueParagraphs = [];\nconst seenParagraphs = [];\n\nfor (const para of allData) {\n  let isDuplicate = false;\n  \n  const compareAgainst = seenParagraphs.slice(-50);\n  \n  for (const seen of compareAgainst) {\n    if (areSimilar(para.paragraphText, seen, 0.9)) {\n      isDuplicate = true;\n      console.log('Duplicate removed:', para.sourceFile.substring(0, 30));\n      break;\n    }\n  }\n  \n  if (!isDuplicate) {\n    uniqueParagraphs.push(para);\n    seenParagraphs.push(para.paragraphText);\n  }\n}\n\nconsole.log('Dedup done:', uniqueParagraphs.length, 'unique of', allData.length, 'total');\n\nreturn uniqueParagraphs.map(p => ({ json: p }));"
+      },
+      "id": "ee0755a3-2be3-4b03-b5c3-28624d59007f",
+      "name": "JS Deduplication",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        112,
+        1248
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "e484a68f-f9c3-4db3-966b-e07cef55fe88",
+      "name": "Loop for Classification",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        848,
+        1360
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (items.length === 0) return [];\n\nconst para = items[0].json;\nconst text = para.paragraphText || '';\n\nif (!text || text.length < 10) {\n  return [];\n}\n\nconst requestBody = {\n  model: 'llama3.2',\n  prompt: `Classify this L.A. Dolce Vita screenplay text. Answer ONLY: SCENE, EPISODE, or OTHER.\\n\\nText: ${text.substring(0, 800)}\\n\\nAnswer:`,\n  stream: false,\n  options: {\n    temperature: 0.1,\n    num_predict: 10\n  }\n};\n\nreturn [{ json: { ...para, requestBody } }];"
+      },
+      "id": "ef9ae3ca-ec11-4f88-a6ad-10e3ca16d344",
+      "name": "Prepare Classification",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        560,
+        1152
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.20.0.2:11434/api/generate",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.requestBody) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "bcd960b2-b7bb-412b-84bb-381c84224c5c",
+      "name": "Classify with Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        768,
+        1152
+      ],
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "continueOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst paraData = $('Prepare Classification').first().json;\n\n// Check for errors from previous node\nif (response.error || response.code >= 400) {\n  console.error('\u274c Classification API error:', response.error || response.message);\n  return [{ json: {\n    error: true,\n    errorMessage: response.error?.message || response.message || 'Classification failed',\n    sourceFile: paraData.sourceFile,\n    category: 'ERROR',\n    episodeNum: null\n  } }];\n}\n\nlet category = 'OTHER';\nlet episodeNum = null;\n\ntry {\n  // Ollama returns response.response field\n  const rawContent = response.response || '';\n  const answer = String(rawContent).trim().toUpperCase();\n\n  if (answer.includes('SCENE')) {\n    category = 'SCENE';\n    const epMatch = paraData.sourceFile.match(/e?(\\d{1,2})/i) || paraData.paragraphText.match(/episode\\s+(\\d{1,2})/i);\n    if (epMatch) episodeNum = parseInt(epMatch[1]);\n  } else if (answer.includes('EPISODE')) {\n    category = 'EPISODE';\n    const epMatch = paraData.sourceFile.match(/e?(\\d{1,2})/i) || paraData.paragraphText.match(/episode\\s+(\\d{1,2})/i);\n    if (epMatch) episodeNum = parseInt(epMatch[1]);\n  }\n\n  // Log progress every 50 items\nconst loopNode = $('Loop for Classification');\nconst currentBatch = loopNode.context?.nodesExecuted || 0;\nif (currentBatch > 0 && currentBatch % 50 === 0) {\n  console.log(`\ud83d\udcbe Progress: ${currentBatch} items processed`);\n}\n\nconsole.log('Classified:', category, episodeNum ? `E${episodeNum}` : '');\n} catch (e) {\n  console.error('Error:', e.message);\n  return [{ json: {\n    error: true,\n    errorMessage: e.message,\n    sourceFile: paraData.sourceFile,\n    category: 'ERROR',\n    episodeNum: null\n  } }];\n}\n\nreturn [{ json: {\n  sourceFile: paraData.sourceFile,\n  paragraphText: paraData.paragraphText,\n  category,\n  episodeNum,\n  error: false\n} }];"
+      },
+      "id": "e06c0936-4dcb-419e-b4bd-c59653eb58e7",
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1200,
+        1152
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "id": "83e6e0d4-5cdf-4b81-8a64-b5acd80af3ad",
+      "name": "Wait 3 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        2304,
+        1120
+      ],
+      "webhookId": "rate-limit-classify",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData"
+      },
+      "id": "aggregate-collect-123",
+      "name": "Collect Classifications",
+      "type": "n8n-nodes-base.aggregate",
+      "position": [
+        432,
+        1520
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "const allData = $input.first().json.data || [];\nconsole.log('✅ Grouping', allData.length, 'classifications from memory');\n\nconst grouped = { episodes: {}, scenes: [], other: [] };\n\nallData.forEach(item => {\n  if (item.category === 'EPISODE') {\n    const ep = item.episodeNum || 0;\n    const epKey = ep > 0 && ep <= 10 ? `E${ep.toString().padStart(2, '0')}` : 'Unassigned';\n    if (!grouped.episodes[epKey]) grouped.episodes[epKey] = [];\n    grouped.episodes[epKey].push(item);\n  } else if (item.category === 'SCENE') {\n    grouped.scenes.push(item);\n  } else {\n    grouped.other.push(item);\n  }\n});\n\nconsole.log('📊 Episodes:', Object.keys(grouped.episodes).length, 'groups | Scenes:', grouped.scenes.length, '| Other:', grouped.other.length);\n\nreturn [{ json: grouped }];"
+      },
+      "id": "group-by-category-456",
+      "name": "Group by Category",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        544,
+        1680
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const grouped = $input.first().json;\n\nfunction buildDoc(title, items) {\n  let content = `${title}\\n${'='.repeat(title.length)}\\n\\n`;\n  items.forEach(item => {\n    content += `${item.paragraphText}\\n\\n---\\n\\n`;\n  });\n  return content;\n}\n\nconst docs = [];\n\n// Episode doc\nlet episodeContent = 'L.A. Dolce Vita - Episodes\\n' + '='.repeat(30) + '\\n\\n';\nconst episodeKeys = Object.keys(grouped.episodes).sort();\nepisodeKeys.forEach(epKey => {\n  const items = grouped.episodes[epKey];\n  episodeContent += `\\n### ${epKey} ###\\n\\n`;\n  items.forEach(item => {\n    episodeContent += `${item.paragraphText}\\n\\n---\\n\\n`;\n  });\n});\ndocs.push({ json: { name: 'n8n_episode_results', content: episodeContent } });\n\n// Scene doc\nif (grouped.scenes.length > 0) {\n  docs.push({ json: { name: 'n8n_scene_results', content: buildDoc('L.A. Dolce Vita - Scenes', grouped.scenes) } });\n}\n\n// Other doc\nif (grouped.other.length > 0) {\n  docs.push({ json: { name: 'n8n_other_results', content: buildDoc('L.A. Dolce Vita - Other', grouped.other) } });\n}\n\nreturn docs;"
+      },
+      "id": "a383017f-eab6-480d-9afc-815edb82d055",
+      "name": "Build Document Content",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1216,
+        1568
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://docs.googleapis.com/v1/documents",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: $json.name }) }}",
+        "options": {}
+      },
+      "id": "fbb2c8ee-5feb-487e-b245-4a2d46af0f07",
+      "name": "Create Google Doc",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1424,
+        1344
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      },
+      "continueOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"https://docs.googleapis.com/v1/documents/\" + $json.documentId + \":batchUpdate\" }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ requests: [{ insertText: { text: $json.content, location: { index: 1 } } }] }) }}",
+        "options": {}
+      },
+      "id": "831a8b8a-96dc-42e4-9a82-3f294fa9084a",
+      "name": "Add Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1648,
+        1344
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      },
+      "continueOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.documentId }}"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1hv8VkUMcR6kl0miZ4LqfVvV64iszfq5y"
+        }
+      },
+      "id": "f9477dea-a2c6-4d15-88c5-fa41582f9769",
+      "name": "Move to Results",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        1856,
+        1344
+      ],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'COMPLETE', message: 'All documents created!' } }];"
+      },
+      "id": "62cc624a-cd6c-45c0-92f2-2ed848339e54",
+      "name": "Done",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2080,
+        1344
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT item_id FROM workflow_checkpoints WHERE workflow_id = 'ladv_dedup' ORDER BY processed_at",
+        "options": {}
+      },
+      "id": "74d93b93-6d08-4cec-a156-a23cb638806b",
+      "name": "Check Checkpoint Database",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        336,
+        1296
+      ],
+      "typeVersion": 2.5,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "credentials": {
+        "postgres": {
+          "id": "7S40nair3YAmDIyt",
+          "name": "Postgres account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const dedupData = $('JS Deduplication').all();\nconst checkpointResults = $('Check Checkpoint Database').all();\n\n// Get list of already processed IDs\nlet processedIds = [];\nif (checkpointResults && checkpointResults.length > 0) {\n  processedIds = checkpointResults.map(item => item.json.item_id);\n}\n\nconsole.log(`\ud83d\udccb Checkpoint: Found ${processedIds.length} already processed items`);\n\n// Add unique IDs to all items - FIXED: removed idx to ensure stable IDs across restarts\nconst withIds = dedupData.map((item) => {\n  const para = item.json;\n  const uniqueId = `para_${para.fileId}_${para.paragraphIndex}`;\n  return { json: { ...para, uniqueId } };\n});\n\n// Filter out already processed\nconst processedSet = new Set(processedIds);\nconst remaining = withIds.filter(item => !processedSet.has(item.json.uniqueId));\n\nconsole.log(`\u2713 Processing: ${remaining.length} remaining of ${withIds.length} total`);\n\nreturn remaining;\n"
+      },
+      "id": "1fde4e88-523d-4267-9b51-c795f2d0c1a2",
+      "name": "Filter Already Processed",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        560,
+        1296
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\n// Store item as structured JSON object (no escaping needed for jsonb)\nreturn [{\n  json: {\n    workflow_id: 'ladv_dedup',\n    item_id: item.uniqueId,\n    item_data: item,\n    classificationData: item\n  }\n}];"
+      },
+      "id": "6c9dd4cb-3e1e-4ab7-be1e-d9b12598188f",
+      "name": "Prepare Checkpoint Insert",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        992,
+        944
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $('Prepare Checkpoint Insert').first().json;\nreturn [{ json: item.classificationData }];"
+      },
+      "id": "cc96eac1-817d-4f16-a64f-c0dde3dfe506",
+      "name": "Continue with Data",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1648,
+        1120
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT CAST(COUNT(*) AS INTEGER) AS total FROM workflow_checkpoints WHERE workflow_id = 'ladv_dedup'",
+        "options": {}
+      },
+      "id": "1d0ddf36-6220-47f4-af9c-e31dbf83d9ba",
+      "name": "Count Checkpoint Progress",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        1856,
+        1120
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "7S40nair3YAmDIyt",
+          "name": "Postgres account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the classification data to pass through\nconst classData = $json;\n\n// Try to get the count from Count Checkpoint Progress node (runs in parallel)\ntry {\n  const countResult = $('Count Checkpoint Progress').first();\n  if (countResult && countResult.json && countResult.json.total) {\n    const total = parseInt(countResult.json.total, 10);\n    if (total > 0 && total % 50 === 0) {\n      console.log(`💾 CHECKPOINT: ${total} items saved to database`);\n    }\n  }\n} catch (e) {\n  // Count node may not have executed yet, ignore\n}\n\n// Pass through the classification data to continue the loop\nreturn [{ json: classData }];"
+      },
+      "id": "6c036774-4832-4c09-8981-2087cc10613f",
+      "name": "Log Progress",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2080,
+        1120
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "workflow_checkpoints",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow_id": "={{ $json.workflow_id }}",
+            "item_id": "={{ $json.item_id }}",
+            "item_data": "={{ $json.item_data }}"
+          }
+        },
+        "options": {
+          "skipOnConflict": true
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1328,
+        1008
+      ],
+      "id": "e482c3c0-7da3-42b2-89b3-46f1e112b875",
+      "name": "Save Checkpoint to DB",
+      "credentials": {
+        "postgres": {
+          "id": "7S40nair3YAmDIyt",
+          "name": "Postgres account"
+        }
+      },
+      "continueOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $credentials.user }}",
+        "toEmail": "mac.caruso@gmail.com",
+        "subject": "=✅ n8n Workflow Complete - GDRIVE Dedup Ollama",
+        "emailFormat": "text",
+        "text": "=Workflow completed successfully!\n\nWorkflow: {{ $workflow.name }}\nExecution ID: {{ $execution.id }}\nCompleted: {{ $now.format('YYYY-MM-DD HH:mm:ss') }}\n\nAll documents have been classified and created in Google Drive.",
+        "options": {}
+      },
+      "id": "1d7ec8f1-8c63-4183-8b64-d1567b88eee9",
+      "name": "Email Success Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [
+        2304,
+        1344
+      ],
+      "typeVersion": 2.1,
+      "credentials": {
+        "smtp": {
+          "id": "BCF4K8oByV2ljP0e",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const errorData = $input.first().json;\n\nlet message;\nif (errorData.hasErrors) {\n  message = `Workflow completed with ERRORS!\n\nWorkflow: GDRIVE Dedup Ollama - v003\nExecution ID: Unknown\nTimestamp: ${errorData.timestamp}\n\nError Summary:\n- Total items: ${errorData.totalCount}\n- Failed items: ${errorData.errorCount}\n- Error rate: ${errorData.errorRate}%\n\nSample errors:\n${errorData.errorSample}\n\nPlease check n8n for full details.`;\n} else {\n  const error = errorData.error || {};\n  message = `Workflow execution failed!\n\nWorkflow: GDRIVE Dedup Ollama - v003\nFailed at: ${new Date().toISOString()}\n\nError: ${error.message || 'Unknown error'}\n\nPlease check n8n for details.`;\n}\n\nreturn [{\n  json: {\n    subject: `\u274c n8n Workflow ERROR - GDRIVE Dedup Ollama`,\n    message: message\n  }\n}];"
+      },
+      "id": "6e2efc8f-c5fc-4a52-917a-4db891a919e1",
+      "name": "Prepare Error Email",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2080,
+        1520
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $credentials.user }}",
+        "toEmail": "mac.caruso@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "d8d6a7cd-1061-471c-bcd6-5bf0f9fcf7e3",
+      "name": "Email Error Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [
+        2304,
+        1520
+      ],
+      "typeVersion": 2.1,
+      "credentials": {
+        "smtp": {
+          "id": "BCF4K8oByV2ljP0e",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.total }}",
+              "operation": "larger",
+              "value2": 0
+            },
+            {
+              "value1": "={{ $json.total }}",
+              "operation": "modulo",
+              "value2": 5000,
+              "output": 0
+            }
+          ]
+        },
+        "combineOperation": "all"
+      },
+      "id": "dd3c4795-f8f9-4238-8d3d-b26fd167616a",
+      "name": "Check Every 5000 Items",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1856,
+        944
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $credentials.user }}",
+        "toEmail": "mac.caruso@gmail.com",
+        "subject": "=📊 n8n Progress Update - GDRIVE Dedup",
+        "emailFormat": "text",
+        "text": "=Progress checkpoint reached!\n\nWorkflow: {{ $workflow.name }}\nItems processed: {{ $json.total }}\nTimestamp: {{ $now.format('yyyy-MM-dd HH:mm:ss') }}\n\nWorkflow is still running...",
+        "options": {}
+      },
+      "id": "8f4a6e2d-9c1b-4f8e-a5d7-3e8f9a1b2c3d",
+      "name": "Email Progress Update",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [
+        2080,
+        944
+      ],
+      "typeVersion": 2.1,
+      "credentials": {
+        "smtp": {
+          "id": "BCF4K8oByV2ljP0e",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error !== undefined || $json.code === 400 || $json.code === 500 }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "3f7b8c9d-1e2f-4a5b-9c8d-7e6f5a4b3c2d",
+      "name": "Detect Errors",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1424,
+        944
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst errors = items.filter(item => item.json.error === true);\nconst errorCount = errors.length;\nconst totalCount = items.length;\n\nconsole.log(`\u26a0\ufe0f  Errors detected: ${errorCount} of ${totalCount} items`);\n\nif (errorCount > 0) {\n  const errorMessages = errors.slice(0, 10).map(e =>\n    `- ${e.json.sourceFile}: ${e.json.errorMessage}`\n  ).join('\\n');\n\n  return [{ json: {\n    hasErrors: true,\n    errorCount,\n    totalCount,\n    errorRate: (errorCount / totalCount * 100).toFixed(2),\n    errorSample: errorMessages,\n    timestamp: new Date().toISOString()\n  }}];\n}\n\nreturn [];"
+      },
+      "id": "9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d",
+      "name": "Check For Errors",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1200,
+        1520
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const docResponse = $input.first().json;\nconst originalData = $('Build Document Content').first().json;\n\nreturn [{\n  json: {\n    ...originalData,\n    ...docResponse\n  }\n}];"
+      },
+      "id": "d99317f9-f01d-470e-9ac0-1f5f71007193",
+      "name": "Merge Doc Data",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1536,
+        1344
+      ],
+      "typeVersion": 2
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start Workflow": {
+      "main": [
+        [
+          {
+            "node": "Preserve Checkpoints",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preserve Checkpoints": {
+      "main": [
+        [
+          {
+            "node": "List Source Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Source Files": {
+      "main": [
+        [
+          {
+            "node": "Filter Docs Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Docs Only": {
+      "main": [
+        [
+          {
+            "node": "Loop Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Files": {
+      "main": [
+        [
+          {
+            "node": "Collect All Paragraphs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Extract Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text": {
+      "main": [
+        [
+          {
+            "node": "Split to Paragraphs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split to Paragraphs": {
+      "main": [
+        [
+          {
+            "node": "Loop Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect All Paragraphs": {
+      "main": [
+        [
+          {
+            "node": "JS Deduplication",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JS Deduplication": {
+      "main": [
+        [
+          {
+            "node": "Check Checkpoint Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop for Classification": {
+      "main": [
+        [
+          {
+            "node": "Collect Classifications",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check For Errors",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Classification": {
+      "main": [
+        [
+          {
+            "node": "Classify with Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify with Ollama": {
+      "main": [
+        [
+          {
+            "node": "Parse Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Classification": {
+      "main": [
+        [
+          {
+            "node": "Prepare Checkpoint Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 3 Seconds": {
+      "main": [
+        [
+          {
+            "node": "Loop for Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Classifications": {
+      "main": [
+        [
+          {
+            "node": "Group by Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Group by Category": {
+      "main": [
+        [
+          {
+            "node": "Build Document Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Document Content": {
+      "main": [
+        [
+          {
+            "node": "Create Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Google Doc": {
+      "main": [
+        [
+          {
+            "node": "Merge Doc Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Content": {
+      "main": [
+        [
+          {
+            "node": "Move to Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Results": {
+      "main": [
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Checkpoint Database": {
+      "main": [
+        [
+          {
+            "node": "Filter Already Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Already Processed": {
+      "main": [
+        [
+          {
+            "node": "Loop for Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Checkpoint Insert": {
+      "main": [
+        [
+          {
+            "node": "Save Checkpoint to DB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Count Checkpoint Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue with Data": {
+      "main": [
+        [
+          {
+            "node": "Wait 3 Seconds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Checkpoint Progress": {
+      "main": [
+        [
+          {
+            "node": "Check Every 5000 Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Checkpoint to DB": {
+      "main": [
+        [
+          {
+            "node": "Continue with Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Done": {
+      "main": [
+        [
+          {
+            "node": "Email Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Every 5000 Items": {
+      "main": [
+        [
+          {
+            "node": "Email Progress Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Error Email": {
+      "main": [
+        [
+          {
+            "node": "Email Error Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check For Errors": {
+      "main": [
+        [
+          {
+            "node": "Prepare Error Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Doc Data": {
+      "main": [
+        [
+          {
+            "node": "Add Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "788b21f9-dea2-40a4-be69-5e9c0cff4b4b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d4c8c1850c9a3b4fbd167ace1b1a970eadeb7035ced45f14dbd27ab40754f7e8"
+  },
+  "id": "0Pi5mJOzzW08bFlV",
+  "tags": []
+}
