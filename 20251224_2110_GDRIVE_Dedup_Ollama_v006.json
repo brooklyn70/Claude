@@ -1,5 +1,5 @@
 {
-  "name": "GDRIVE Dedup Ollama - v005",
+  "name": "GDRIVE Dedup Ollama - v006",
   "nodes": [
     {
       "parameters": {},
@@ -475,7 +475,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COUNT(*) as total FROM workflow_checkpoints WHERE workflow_id = 'ladv_dedup'",
+        "query": "SELECT CAST(COUNT(*) AS INTEGER) AS total FROM workflow_checkpoints WHERE workflow_id = 'ladv_dedup'",
         "options": {}
       },
       "id": "1d0ddf36-6220-47f4-af9c-e31dbf83d9ba",

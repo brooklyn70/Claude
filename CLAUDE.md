@@ -30,7 +30,8 @@ When creating/updating workflow files:
    - v001-v002: Initial failed workflows
    - v003: First fix attempt
    - v004: Email/checkpoint fixes
-   - v005: Current (Postgres array structure fix, email frequency 5000)
+   - v005: Postgres array structure fix, email frequency 5000
+   - v006: Current (CAST COUNT as INTEGER for proper data type)
    - ALWAYS increment - never reuse version numbers
 
 4. **Before committing ANY workflow file:**
