@@ -15,11 +15,11 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "DELETE FROM workflow_checkpoints WHERE workflow_id = 'ladv_dedup'",
+        "query": "-- Checkpoints will be preserved for resume\n-- To start fresh: manually DELETE FROM workflow_checkpoints WHERE workflow_id = 'ladv_dedup'\nSELECT 'Checkpoints preserved for resume' as status",
         "options": {}
       },
       "id": "d7150d25-df43-4375-aac3-14e636904dba",
-      "name": "Clear Old Checkpoints",
+      "name": "Preserve Checkpoints",
       "type": "n8n-nodes-base.postgres",
       "position": [
         -880,
@@ -567,24 +567,25 @@
     },
     {
       "parameters": {
-        "sendTo": "YOUR_EMAIL@example.com",
-        "subject": "\u2705 n8n Workflow Complete - GDRIVE Dedup Ollama",
-        "emailType": "text",
-        "message": "=Workflow completed successfully!\n\nWorkflow: {{ $workflow.name }}\nExecution ID: {{ $execution.id }}\nCompleted: {{ $now.format('YYYY-MM-DD HH:mm:ss') }}\n\nAll documents have been classified and created in Google Drive.",
+        "fromEmail": "={{ $credentials.user }}",
+        "toEmail": "YOUR_EMAIL@example.com",
+        "subject": "=✅ n8n Workflow Complete - GDRIVE Dedup Ollama",
+        "emailFormat": "text",
+        "text": "=Workflow completed successfully!\n\nWorkflow: {{ $workflow.name }}\nExecution ID: {{ $execution.id }}\nCompleted: {{ $now.format('YYYY-MM-DD HH:mm:ss') }}\n\nAll documents have been classified and created in Google Drive.",
         "options": {}
       },
       "id": "1d7ec8f1-8c63-4183-8b64-d1567b88eee9",
       "name": "Email Success Notification",
-      "type": "n8n-nodes-base.gmail",
+      "type": "n8n-nodes-base.emailSend",
       "position": [
         2304,
         1344
       ],
       "typeVersion": 2.1,
       "credentials": {
-        "gmailOAuth2": {
-          "id": "CONFIGURE_GMAIL_CREDENTIAL",
-          "name": "Gmail account"
+        "smtp": {
+          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "name": "SMTP account"
         }
       }
     },
@@ -603,24 +604,25 @@
     },
     {
       "parameters": {
-        "sendTo": "YOUR_EMAIL@example.com",
+        "fromEmail": "={{ $credentials.user }}",
+        "toEmail": "YOUR_EMAIL@example.com",
         "subject": "={{ $json.subject }}",
-        "emailType": "text",
-        "message": "={{ $json.message }}",
+        "emailFormat": "text",
+        "text": "={{ $json.message }}",
         "options": {}
       },
       "id": "d8d6a7cd-1061-471c-bcd6-5bf0f9fcf7e3",
       "name": "Email Error Notification",
-      "type": "n8n-nodes-base.gmail",
+      "type": "n8n-nodes-base.emailSend",
       "position": [
         2304,
         1520
       ],
       "typeVersion": 2.1,
       "credentials": {
-        "gmailOAuth2": {
-          "id": "CONFIGURE_GMAIL_CREDENTIAL",
-          "name": "Gmail account"
+        "smtp": {
+          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "name": "SMTP account"
         }
       }
     },
@@ -648,24 +650,25 @@
     },
     {
       "parameters": {
-        "sendTo": "YOUR_EMAIL@example.com",
-        "subject": "\ud83d\udcca n8n Progress Update - GDRIVE Dedup",
-        "emailType": "text",
-        "message": "=Progress checkpoint reached!\n\nWorkflow: {{ $workflow.name }}\nItems processed: {{ $('Count Checkpoint Progress').first().json[0].total }}\nTimestamp: {{ $now.format('YYYY-MM-DD HH:mm:ss') }}\n\nWorkflow is still running...",
+        "fromEmail": "={{ $credentials.user }}",
+        "toEmail": "YOUR_EMAIL@example.com",
+        "subject": "=📊 n8n Progress Update - GDRIVE Dedup",
+        "emailFormat": "text",
+        "text": "=Progress checkpoint reached!\n\nWorkflow: {{ $workflow.name }}\nItems processed: {{ $('Count Checkpoint Progress').first().json[0].total }}\nTimestamp: {{ $now.format('YYYY-MM-DD HH:mm:ss') }}\n\nWorkflow is still running...",
         "options": {}
       },
       "id": "8f4a6e2d-9c1b-4f8e-a5d7-3e8f9a1b2c3d",
       "name": "Email Progress Update",
-      "type": "n8n-nodes-base.gmail",
+      "type": "n8n-nodes-base.emailSend",
       "position": [
         2080,
         944
       ],
       "typeVersion": 2.1,
       "credentials": {
-        "gmailOAuth2": {
-          "id": "CONFIGURE_GMAIL_CREDENTIAL",
-          "name": "Gmail account"
+        "smtp": {
+          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "name": "SMTP account"
         }
       }
     },
