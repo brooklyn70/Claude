@@ -32,7 +32,8 @@ When creating/updating workflow files:
    - v004: Email/checkpoint fixes
    - v005: Postgres array structure fix, email frequency 5000
    - v006: CAST COUNT as INTEGER for proper data type
-   - v007: Current (Remove [0] array index - Postgres returns single row directly)
+   - v007: Remove [0] array index - Postgres returns single row directly
+   - v008: Current (Use $json.total in IF/email - evaluate on Postgres output not classification items)
    - ALWAYS increment - never reuse version numbers
 
 4. **Before committing ANY workflow file:**
