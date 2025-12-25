@@ -342,7 +342,7 @@
         "nodeCredentialType": "googleDriveOAuth2Api",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ requests: [{ insertText: { text: $('Build Document Content').item.json.content, location: { index: 1 } } }] }) }}",
+        "jsonBody": "={{ JSON.stringify({ requests: [{ insertText: { text: $json.content, location: { index: 1 } } }] }) }}",
         "options": {}
       },
       "id": "831a8b8a-96dc-42e4-9a82-3f294fa9084a",
@@ -701,6 +701,19 @@
         1520
       ],
       "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const docResponse = $input.first().json;\nconst originalData = $('Build Document Content').first().json;\n\nreturn [{\n  json: {\n    ...originalData,\n    ...docResponse\n  }\n}];"
+      },
+      "id": "d99317f9-f01d-470e-9ac0-1f5f71007193",
+      "name": "Merge Doc Data",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1536,
+        1344
+      ],
+      "typeVersion": 2
     }
   ],
   "pinData": {},
@@ -926,7 +939,7 @@
       "main": [
         [
           {
-            "node": "Add Content",
+            "node": "Merge Doc Data",
             "type": "main",
             "index": 0
           }
@@ -1097,6 +1110,17 @@
         [
           {
             "node": "Prepare Error Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Doc Data": {
+      "main": [
+        [
+          {
+            "node": "Add Content",
             "type": "main",
             "index": 0
           }
