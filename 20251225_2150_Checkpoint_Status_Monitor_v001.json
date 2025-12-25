@@ -1,0 +1,109 @@
+{
+  "name": "Checkpoint Status Monitor - v001",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-001",
+      "name": "Start Workflow",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [240, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COUNT(*)::integer AS total_items,\n  COUNT(*) FILTER (WHERE processed_at >= NOW() - INTERVAL '1 day')::integer AS last_24h\nFROM workflow_checkpoints\nWHERE workflow_id = 'ladv_dedup';",
+        "options": {}
+      },
+      "id": "postgres-get-counts-002",
+      "name": "Get Checkpoint Counts",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "7S40nair3YAmDIyt",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json[0] || $input.first().json;\nconst total = row.total_items || 0;\nconst last24 = row.last_24h || 0;\n\nconst message = [\n  'GDRIVE Dedup / Ollama – Checkpoint Status',\n  '========================================',\n  '',\n  `Workflow ID: ladv_dedup`,\n  `Total items in checkpoints: ${total}`,\n  `Items added in last 24h:   ${last24}`,\n  '',\n  total === 0\n    ? '⚠️ No items stored yet – next full run will be long.'\n    : '✅ Checkpoints exist – next run should skip already processed items.',\n  '',\n  `Timestamp: ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`\n].join('\\n');\n\nreturn [{ json: { subject: 'n8n Checkpoint Status – ladv_dedup', message, total, last24 } }];"
+      },
+      "id": "code-format-report-003",
+      "name": "Format Report",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $credentials.user }}",
+        "toEmail": "mac.caruso@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "email-send-report-004",
+      "name": "Send Status Email",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [900, 300],
+      "typeVersion": 2.1,
+      "credentials": {
+        "smtp": {
+          "id": "BCF4K8oByV2ljP0e",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start Workflow": {
+      "main": [
+        [
+          {
+            "node": "Get Checkpoint Counts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Checkpoint Counts": {
+      "main": [
+        [
+          {
+            "node": "Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Report": {
+      "main": [
+        [
+          {
+            "node": "Send Status Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "checkpoint-status-v001",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "n8n-checkpoint-monitor"
+  },
+  "id": "checkpoint-status-monitor",
+  "tags": []
+}
