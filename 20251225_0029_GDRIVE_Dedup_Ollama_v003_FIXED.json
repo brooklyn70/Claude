@@ -725,7 +725,7 @@
       "main": [
         [
           {
-            "node": "Clear Old Checkpoints",
+            "node": "Preserve Checkpoints",
             "type": "main",
             "index": 0
           }
