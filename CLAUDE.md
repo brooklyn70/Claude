@@ -37,7 +37,8 @@ When creating/updating workflow files:
    - v009: Rewired connections - IF node only sees Postgres output, false branch to Log Progress
    - v010: Parallel flow - Continue with Data splits to both Count+Log, classification data continues loop
    - v011: Side branch pattern - Count/IF/Email branch from Prepare Checkpoint, removed Log Progress
-   - v012: Current (Removed progress emails entirely - caused Gmail lockout and spam)
+   - v012: Removed progress emails entirely - caused Gmail lockout and spam
+   - v013: Current (Fixed empty docs - Parse Classification now always includes paragraphText, added comprehensive logging)
    - ALWAYS increment - never reuse version numbers
 
 4. **Before committing ANY workflow file:**
