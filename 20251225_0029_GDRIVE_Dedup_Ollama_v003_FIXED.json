@@ -732,7 +732,7 @@
         ]
       ]
     },
-    "Clear Old Checkpoints": {
+    "Preserve Checkpoints": {
       "main": [
         [
           {
