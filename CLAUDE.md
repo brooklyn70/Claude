@@ -12,6 +12,33 @@ n8n workflow automation for L.A. Dolce Vita screenplay deduplication and classif
 - Console logging for all checkpoint operations
 - Timestamp format: YYYYMMDD_HHMM_filename.json
 
+### Workflow File Versioning - CRITICAL
+**User is in NEW YORK timezone (EST/EDT) - always use their local time for timestamps**
+
+When creating/updating workflow files:
+1. **Filename format:** `YYYYMMDD_HHMM_WorkflowName_vXXX.json`
+   - Use NEW YORK time for HHMM (not UTC, not server time)
+   - Increment version number sequentially (v001, v002, v003, etc.)
+   - Example: `20251224_2108_GDRIVE_Dedup_Ollama_v005.json`
+
+2. **Internal JSON name field:** MUST match version in filename
+   - Line 2 of JSON: `"name": "GDRIVE Dedup Ollama - v005"`
+   - If filename is v005, internal name MUST be v005
+   - User will see this name in n8n UI
+
+3. **Version tracking:**
+   - v001-v002: Initial failed workflows
+   - v003: First fix attempt
+   - v004: Email/checkpoint fixes
+   - v005: Current (Postgres array structure fix, email frequency 5000)
+   - ALWAYS increment - never reuse version numbers
+
+4. **Before committing ANY workflow file:**
+   - ✅ Check filename has correct NY time
+   - ✅ Check filename has correct version number
+   - ✅ Check internal "name" field matches version
+   - ✅ All three MUST be correct or user will be frustrated
+
 ### Communication
 - Direct, actionable solutions - no theoretical discussions
 - Test all JSON modifications before outputting
