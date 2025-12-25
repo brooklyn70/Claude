@@ -633,14 +633,14 @@
             {
               "value1": "={{ $json.total }}",
               "operation": "modulo",
-              "value2": 500,
+              "value2": 5000,
               "output": 0
             }
           ]
         }
       },
       "id": "dd3c4795-f8f9-4238-8d3d-b26fd167616a",
-      "name": "Check Every 500 Items",
+      "name": "Check Every 5000 Items",
       "type": "n8n-nodes-base.if",
       "position": [
         1856,
@@ -1024,7 +1024,7 @@
             "index": 0
           },
           {
-            "node": "Check Every 500 Items",
+            "node": "Check Every 5000 Items",
             "type": "main",
             "index": 0
           }
@@ -1086,7 +1086,7 @@
         ]
       ]
     },
-    "Check Every 500 Items": {
+    "Check Every 5000 Items": {
       "main": [
         [
           {
