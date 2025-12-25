@@ -228,11 +228,13 @@
       "typeVersion": 4.2,
       "retryOnFail": true,
       "maxTries": 5,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "continueOnFail": true,
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst paraData = $('Prepare Classification').first().json;\n\nlet category = 'OTHER';\nlet episodeNum = null;\n\ntry {\n  // Ollama returns response.response field\n  const rawContent = response.response || '';\n  const answer = String(rawContent).trim().toUpperCase();\n  \n  if (answer.includes('SCENE')) {\n    category = 'SCENE';\n    const epMatch = paraData.sourceFile.match(/e?(\\\\d{1,2})/i) || paraData.paragraphText.match(/episode\\\\s+(\\\\d{1,2})/i);\n    if (epMatch) episodeNum = parseInt(epMatch[1]);\n  } else if (answer.includes('EPISODE')) {\n    category = 'EPISODE';\n    const epMatch = paraData.sourceFile.match(/e?(\\\\d{1,2})/i) || paraData.paragraphText.match(/episode\\\\s+(\\\\d{1,2})/i);\n    if (epMatch) episodeNum = parseInt(epMatch[1]);\n  }\n  \n  // Log progress every 50 items\nconst loopNode = $('Loop for Classification');\nconst currentBatch = loopNode.context?.nodesExecuted || 0;\nif (currentBatch > 0 && currentBatch % 50 === 0) {\n  console.log(`💾 Progress: ${currentBatch} items processed`);\n}\n\nconsole.log('Classified:', category, episodeNum ? `E${episodeNum}` : '');\n} catch (e) {\n  console.error('Error:', e.message);\n}\n\nreturn [{ json: { \n  sourceFile: paraData.sourceFile,\n  paragraphText: paraData.paragraphText,\n  category,\n  episodeNum\n} }];"
+        "jsCode": "const response = $input.first().json;\nconst paraData = $('Prepare Classification').first().json;\n\n// Check for errors from previous node\nif (response.error || response.code >= 400) {\n  console.error('\u274c Classification API error:', response.error || response.message);\n  return [{ json: {\n    error: true,\n    errorMessage: response.error?.message || response.message || 'Classification failed',\n    sourceFile: paraData.sourceFile,\n    category: 'ERROR',\n    episodeNum: null\n  } }];\n}\n\nlet category = 'OTHER';\nlet episodeNum = null;\n\ntry {\n  // Ollama returns response.response field\n  const rawContent = response.response || '';\n  const answer = String(rawContent).trim().toUpperCase();\n\n  if (answer.includes('SCENE')) {\n    category = 'SCENE';\n    const epMatch = paraData.sourceFile.match(/e?(\\d{1,2})/i) || paraData.paragraphText.match(/episode\\s+(\\d{1,2})/i);\n    if (epMatch) episodeNum = parseInt(epMatch[1]);\n  } else if (answer.includes('EPISODE')) {\n    category = 'EPISODE';\n    const epMatch = paraData.sourceFile.match(/e?(\\d{1,2})/i) || paraData.paragraphText.match(/episode\\s+(\\d{1,2})/i);\n    if (epMatch) episodeNum = parseInt(epMatch[1]);\n  }\n\n  // Log progress every 50 items\nconst loopNode = $('Loop for Classification');\nconst currentBatch = loopNode.context?.nodesExecuted || 0;\nif (currentBatch > 0 && currentBatch % 50 === 0) {\n  console.log(`\ud83d\udcbe Progress: ${currentBatch} items processed`);\n}\n\nconsole.log('Classified:', category, episodeNum ? `E${episodeNum}` : '');\n} catch (e) {\n  console.error('Error:', e.message);\n  return [{ json: {\n    error: true,\n    errorMessage: e.message,\n    sourceFile: paraData.sourceFile,\n    category: 'ERROR',\n    episodeNum: null\n  } }];\n}\n\nreturn [{ json: {\n  sourceFile: paraData.sourceFile,\n  paragraphText: paraData.paragraphText,\n  category,\n  episodeNum,\n  error: false\n} }];"
       },
       "id": "e06c0936-4dcb-419e-b4bd-c59653eb58e7",
       "name": "Parse Classification",
@@ -280,7 +282,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const allData = $input.first().json.data || [];\nconsole.log('Grouping', allData.length, 'classified items');\n\nconst grouped = {\n  episodes: {},\n  scenes: [],\n  other: []\n};\n\nallData.forEach(item => {\n  if (item.category === 'EPISODE') {\n    const ep = item.episodeNum || 0;\n    const epKey = ep > 0 && ep <= 10 ? `E${ep.toString().padStart(2, '0')}` : 'Unassigned';\n    if (!grouped.episodes[epKey]) grouped.episodes[epKey] = [];\n    grouped.episodes[epKey].push(item);\n  } else if (item.category === 'SCENE') {\n    grouped.scenes.push(item);\n  } else {\n    grouped.other.push(item);\n  }\n});\n\nconsole.log('✅ Grouped - Episodes:', Object.keys(grouped.episodes).length, 'Scenes:', grouped.scenes.length, 'Other:', grouped.other.length);\n\nreturn [{ json: grouped }];"
+        "jsCode": "const allData = $input.first().json.data || [];\nconsole.log('Grouping', allData.length, 'classified items');\n\nconst grouped = {\n  episodes: {},\n  scenes: [],\n  other: []\n};\n\nallData.forEach(item => {\n  if (item.category === 'EPISODE') {\n    const ep = item.episodeNum || 0;\n    const epKey = ep > 0 && ep <= 10 ? `E${ep.toString().padStart(2, '0')}` : 'Unassigned';\n    if (!grouped.episodes[epKey]) grouped.episodes[epKey] = [];\n    grouped.episodes[epKey].push(item);\n  } else if (item.category === 'SCENE') {\n    grouped.scenes.push(item);\n  } else {\n    grouped.other.push(item);\n  }\n});\n\nconsole.log('\u2705 Grouped - Episodes:', Object.keys(grouped.episodes).length, 'Scenes:', grouped.scenes.length, 'Other:', grouped.other.length);\n\nreturn [{ json: grouped }];"
       },
       "id": "2040ba10-7743-4f6a-9ee0-a6ba16852f6c",
       "name": "Group by Category",
@@ -328,7 +330,9 @@
           "id": "0wP4KdHht1F3GzDE",
           "name": "Google Drive account"
         }
-      }
+      },
+      "continueOnFail": true,
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -354,7 +358,9 @@
           "id": "0wP4KdHht1F3GzDE",
           "name": "Google Drive account"
         }
-      }
+      },
+      "continueOnFail": true,
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -429,7 +435,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const dedupData = $('JS Deduplication').all();\nconst checkpointResults = $('Check Checkpoint Database').all();\n\n// Get list of already processed IDs\nlet processedIds = [];\nif (checkpointResults && checkpointResults.length > 0) {\n  processedIds = checkpointResults.map(item => item.json.item_id);\n}\n\nconsole.log(`📋 Checkpoint: Found ${processedIds.length} already processed items`);\n\n// Add unique IDs to all items - FIXED: removed idx to ensure stable IDs across restarts\nconst withIds = dedupData.map((item) => {\n  const para = item.json;\n  const uniqueId = `para_${para.fileId}_${para.paragraphIndex}`;\n  return { json: { ...para, uniqueId } };\n});\n\n// Filter out already processed\nconst processedSet = new Set(processedIds);\nconst remaining = withIds.filter(item => !processedSet.has(item.json.uniqueId));\n\nconsole.log(`✓ Processing: ${remaining.length} remaining of ${withIds.length} total`);\n\nreturn remaining;\n"
+        "jsCode": "const dedupData = $('JS Deduplication').all();\nconst checkpointResults = $('Check Checkpoint Database').all();\n\n// Get list of already processed IDs\nlet processedIds = [];\nif (checkpointResults && checkpointResults.length > 0) {\n  processedIds = checkpointResults.map(item => item.json.item_id);\n}\n\nconsole.log(`\ud83d\udccb Checkpoint: Found ${processedIds.length} already processed items`);\n\n// Add unique IDs to all items - FIXED: removed idx to ensure stable IDs across restarts\nconst withIds = dedupData.map((item) => {\n  const para = item.json;\n  const uniqueId = `para_${para.fileId}_${para.paragraphIndex}`;\n  return { json: { ...para, uniqueId } };\n});\n\n// Filter out already processed\nconst processedSet = new Set(processedIds);\nconst remaining = withIds.filter(item => !processedSet.has(item.json.uniqueId));\n\nconsole.log(`\u2713 Processing: ${remaining.length} remaining of ${withIds.length} total`);\n\nreturn remaining;\n"
       },
       "id": "1fde4e88-523d-4267-9b51-c795f2d0c1a2",
       "name": "Filter Already Processed",
@@ -490,7 +496,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const countResult = $('Count Checkpoint Progress').first();\nconst classData = $('Continue with Data').first().json;\n\nif (countResult && countResult.json && countResult.json[0]) {\n  const total = parseInt(countResult.json[0].total);\n  if (total % 50 === 0) {\n    console.log(`💾 CHECKPOINT: ${total} items saved to database`);\n  }\n}\n\nreturn [{ json: classData }];"
+        "jsCode": "const countResult = $('Count Checkpoint Progress').first();\nconst classData = $('Continue with Data').first().json;\n\nif (countResult && countResult.json && countResult.json[0]) {\n  const total = parseInt(countResult.json[0].total);\n  if (total % 50 === 0) {\n    console.log(`\ud83d\udcbe CHECKPOINT: ${total} items saved to database`);\n  }\n}\n\nreturn [{ json: classData }];"
       },
       "id": "6c036774-4832-4c09-8981-2087cc10613f",
       "name": "Log Progress",
@@ -525,7 +531,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const dbResults = $('Retrieve All Classifications').all();\nconsole.log('✅ Retrieved', dbResults.length, 'classifications from database');\n\n// Parse JSON from item_data column  \nconst allData = dbResults.map(row => {\n  const itemData = row.json.item_data;\n  // Data is already escaped with '', need to parse as-is\n  return typeof itemData === 'string' ? JSON.parse(itemData) : itemData;\n});\n\nconsole.log('✅ Parsed', allData.length, 'items - grouping by category');\n\nconst grouped = {\n  episodes: {},\n  scenes: [],\n  other: []\n};\n\nallData.forEach(item => {\n  if (item.category === 'EPISODE') {\n    const ep = item.episodeNum || 0;\n    const epKey = ep > 0 && ep <= 10 ? `E${ep.toString().padStart(2, '0')}` : 'Unassigned';\n    if (!grouped.episodes[epKey]) grouped.episodes[epKey] = [];\n    grouped.episodes[epKey].push(item);\n  } else if (item.category === 'SCENE') {\n    grouped.scenes.push(item);\n  } else {\n    grouped.other.push(item);\n  }\n});\n\nconsole.log('✅ Episodes:', Object.keys(grouped.episodes).length, 'Scenes:', grouped.scenes.length, 'Other:', grouped.other.length);\n\nreturn [{ json: grouped }];"
+        "jsCode": "const dbResults = $('Retrieve All Classifications').all();\nconsole.log('\u2705 Retrieved', dbResults.length, 'classifications from database');\n\n// Parse JSON from item_data column  \nconst allData = dbResults.map(row => {\n  const itemData = row.json.item_data;\n  // Data is already escaped with '', need to parse as-is\n  return typeof itemData === 'string' ? JSON.parse(itemData) : itemData;\n});\n\nconsole.log('\u2705 Parsed', allData.length, 'items - grouping by category');\n\nconst grouped = {\n  episodes: {},\n  scenes: [],\n  other: []\n};\n\nallData.forEach(item => {\n  if (item.category === 'EPISODE') {\n    const ep = item.episodeNum || 0;\n    const epKey = ep > 0 && ep <= 10 ? `E${ep.toString().padStart(2, '0')}` : 'Unassigned';\n    if (!grouped.episodes[epKey]) grouped.episodes[epKey] = [];\n    grouped.episodes[epKey].push(item);\n  } else if (item.category === 'SCENE') {\n    grouped.scenes.push(item);\n  } else {\n    grouped.other.push(item);\n  }\n});\n\nconsole.log('\u2705 Episodes:', Object.keys(grouped.episodes).length, 'Scenes:', grouped.scenes.length, 'Other:', grouped.other.length);\n\nreturn [{ json: grouped }];"
       },
       "id": "a79efcb2-4784-4716-a4e0-2fdc1bb169c7",
       "name": "Parse and Group Data",
@@ -555,7 +561,146 @@
           "id": "7S40nair3YAmDIyt",
           "name": "Postgres account"
         }
+      },
+      "continueOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_EMAIL@example.com",
+        "subject": "\u2705 n8n Workflow Complete - GDRIVE Dedup Ollama",
+        "emailType": "text",
+        "message": "=Workflow completed successfully!\n\nWorkflow: {{ $workflow.name }}\nExecution ID: {{ $execution.id }}\nCompleted: {{ $now.format('YYYY-MM-DD HH:mm:ss') }}\n\nAll documents have been classified and created in Google Drive.",
+        "options": {}
+      },
+      "id": "1d7ec8f1-8c63-4183-8b64-d1567b88eee9",
+      "name": "Email Success Notification",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        2304,
+        1344
+      ],
+      "typeVersion": 2.1,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CONFIGURE_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const errorData = $input.first().json;\n\nlet message;\nif (errorData.hasErrors) {\n  message = `Workflow completed with ERRORS!\n\nWorkflow: GDRIVE Dedup Ollama - v003\nExecution ID: Unknown\nTimestamp: ${errorData.timestamp}\n\nError Summary:\n- Total items: ${errorData.totalCount}\n- Failed items: ${errorData.errorCount}\n- Error rate: ${errorData.errorRate}%\n\nSample errors:\n${errorData.errorSample}\n\nPlease check n8n for full details.`;\n} else {\n  const error = errorData.error || {};\n  message = `Workflow execution failed!\n\nWorkflow: GDRIVE Dedup Ollama - v003\nFailed at: ${new Date().toISOString()}\n\nError: ${error.message || 'Unknown error'}\n\nPlease check n8n for details.`;\n}\n\nreturn [{\n  json: {\n    subject: `\u274c n8n Workflow ERROR - GDRIVE Dedup Ollama`,\n    message: message\n  }\n}];"
+      },
+      "id": "6e2efc8f-c5fc-4a52-917a-4db891a919e1",
+      "name": "Prepare Error Email",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2080,
+        1520
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_EMAIL@example.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "d8d6a7cd-1061-471c-bcd6-5bf0f9fcf7e3",
+      "name": "Email Error Notification",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        2304,
+        1520
+      ],
+      "typeVersion": 2.1,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CONFIGURE_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $('Count Checkpoint Progress').first().json[0]?.total || 0 }}",
+              "operation": "modulo",
+              "value2": 500,
+              "output": 0
+            }
+          ]
+        }
+      },
+      "id": "dd3c4795-f8f9-4238-8d3d-b26fd167616a",
+      "name": "Check Every 500 Items",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1856,
+        944
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_EMAIL@example.com",
+        "subject": "\ud83d\udcca n8n Progress Update - GDRIVE Dedup",
+        "emailType": "text",
+        "message": "=Progress checkpoint reached!\n\nWorkflow: {{ $workflow.name }}\nItems processed: {{ $('Count Checkpoint Progress').first().json[0].total }}\nTimestamp: {{ $now.format('YYYY-MM-DD HH:mm:ss') }}\n\nWorkflow is still running...",
+        "options": {}
+      },
+      "id": "8f4a6e2d-9c1b-4f8e-a5d7-3e8f9a1b2c3d",
+      "name": "Email Progress Update",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        2080,
+        944
+      ],
+      "typeVersion": 2.1,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CONFIGURE_GMAIL_CREDENTIAL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.error !== undefined || $json.code === 400 || $json.code === 500 }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "3f7b8c9d-1e2f-4a5b-9c8d-7e6f5a4b3c2d",
+      "name": "Detect Errors",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1424,
+        944
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst errors = items.filter(item => item.json.error === true);\nconst errorCount = errors.length;\nconst totalCount = items.length;\n\nconsole.log(`\u26a0\ufe0f  Errors detected: ${errorCount} of ${totalCount} items`);\n\nif (errorCount > 0) {\n  const errorMessages = errors.slice(0, 10).map(e =>\n    `- ${e.json.sourceFile}: ${e.json.errorMessage}`\n  ).join('\\n');\n\n  return [{ json: {\n    hasErrors: true,\n    errorCount,\n    totalCount,\n    errorRate: (errorCount / totalCount * 100).toFixed(2),\n    errorSample: errorMessages,\n    timestamp: new Date().toISOString()\n  }}];\n}\n\nreturn [];"
+      },
+      "id": "9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d",
+      "name": "Check For Errors",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1200,
+        1520
+      ],
+      "typeVersion": 2
     }
   ],
   "pinData": {},
@@ -682,6 +827,11 @@
         [
           {
             "node": "Retrieve All Classifications",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check For Errors",
             "type": "main",
             "index": 0
           }
@@ -856,6 +1006,11 @@
             "node": "Log Progress",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Check Every 500 Items",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -898,6 +1053,50 @@
         [
           {
             "node": "Continue with Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Done": {
+      "main": [
+        [
+          {
+            "node": "Email Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Every 500 Items": {
+      "main": [
+        [
+          {
+            "node": "Email Progress Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Error Email": {
+      "main": [
+        [
+          {
+            "node": "Email Error Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check For Errors": {
+      "main": [
+        [
+          {
+            "node": "Prepare Error Email",
             "type": "main",
             "index": 0
           }
