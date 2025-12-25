@@ -34,7 +34,8 @@ When creating/updating workflow files:
    - v006: CAST COUNT as INTEGER for proper data type
    - v007: Remove [0] array index - Postgres returns single row directly
    - v008: Use $json.total in IF/email - evaluate on Postgres output not classification items
-   - v009: Current (Rewired connections - IF node only sees Postgres output, false branch to Log Progress)
+   - v009: Rewired connections - IF node only sees Postgres output, false branch to Log Progress
+   - v010: Current (Parallel flow - Continue with Data splits to both Count+Log, classification data continues loop)
    - ALWAYS increment - never reuse version numbers
 
 4. **Before committing ANY workflow file:**
