@@ -35,7 +35,8 @@ When creating/updating workflow files:
    - v007: Remove [0] array index - Postgres returns single row directly
    - v008: Use $json.total in IF/email - evaluate on Postgres output not classification items
    - v009: Rewired connections - IF node only sees Postgres output, false branch to Log Progress
-   - v010: Current (Parallel flow - Continue with Data splits to both Count+Log, classification data continues loop)
+   - v010: Parallel flow - Continue with Data splits to both Count+Log, classification data continues loop
+   - v011: Current (Side branch pattern - Count/IF/Email branch from Prepare Checkpoint, removed Log Progress)
    - ALWAYS increment - never reuse version numbers
 
 4. **Before committing ANY workflow file:**

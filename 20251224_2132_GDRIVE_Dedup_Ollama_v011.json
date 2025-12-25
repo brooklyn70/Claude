@@ -1,5 +1,5 @@
 {
-  "name": "GDRIVE Dedup Ollama - v010",
+  "name": "GDRIVE Dedup Ollama - v011",
   "nodes": [
     {
       "parameters": {},
@@ -1000,6 +1000,11 @@
             "node": "Execute a SQL query",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Count Checkpoint Progress",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1008,12 +1013,7 @@
       "main": [
         [
           {
-            "node": "Count Checkpoint Progress",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Log Progress",
+            "node": "Wait 3 Seconds",
             "type": "main",
             "index": 0
           }
@@ -1025,17 +1025,6 @@
         [
           {
             "node": "Check Every 5000 Items",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Log Progress": {
-      "main": [
-        [
-          {
-            "node": "Wait 3 Seconds",
             "type": "main",
             "index": 0
           }
