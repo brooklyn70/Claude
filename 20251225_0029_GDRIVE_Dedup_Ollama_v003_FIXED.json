@@ -368,7 +368,7 @@
         "fileId": {
           "__rl": true,
           "mode": "id",
-          "value": "={{ $('Create Google Doc').first().json.documentId }}"
+          "value": "={{ $json.documentId }}"
         },
         "driveId": {
           "__rl": true,
@@ -568,7 +568,7 @@
     {
       "parameters": {
         "fromEmail": "={{ $credentials.user }}",
-        "toEmail": "YOUR_EMAIL@example.com",
+        "toEmail": "mac.caruso@gmail.com",
         "subject": "=✅ n8n Workflow Complete - GDRIVE Dedup Ollama",
         "emailFormat": "text",
         "text": "=Workflow completed successfully!\n\nWorkflow: {{ $workflow.name }}\nExecution ID: {{ $execution.id }}\nCompleted: {{ $now.format('YYYY-MM-DD HH:mm:ss') }}\n\nAll documents have been classified and created in Google Drive.",
@@ -584,7 +584,7 @@
       "typeVersion": 2.1,
       "credentials": {
         "smtp": {
-          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "id": "BCF4K8oByV2ljP0e",
           "name": "SMTP account"
         }
       }
@@ -605,7 +605,7 @@
     {
       "parameters": {
         "fromEmail": "={{ $credentials.user }}",
-        "toEmail": "YOUR_EMAIL@example.com",
+        "toEmail": "mac.caruso@gmail.com",
         "subject": "={{ $json.subject }}",
         "emailFormat": "text",
         "text": "={{ $json.message }}",
@@ -621,7 +621,7 @@
       "typeVersion": 2.1,
       "credentials": {
         "smtp": {
-          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "id": "BCF4K8oByV2ljP0e",
           "name": "SMTP account"
         }
       }
@@ -651,7 +651,7 @@
     {
       "parameters": {
         "fromEmail": "={{ $credentials.user }}",
-        "toEmail": "YOUR_EMAIL@example.com",
+        "toEmail": "mac.caruso@gmail.com",
         "subject": "=📊 n8n Progress Update - GDRIVE Dedup",
         "emailFormat": "text",
         "text": "=Progress checkpoint reached!\n\nWorkflow: {{ $workflow.name }}\nItems processed: {{ $('Count Checkpoint Progress').first().json[0].total }}\nTimestamp: {{ $now.format('YYYY-MM-DD HH:mm:ss') }}\n\nWorkflow is still running...",
@@ -667,7 +667,7 @@
       "typeVersion": 2.1,
       "credentials": {
         "smtp": {
-          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "id": "BCF4K8oByV2ljP0e",
           "name": "SMTP account"
         }
       }

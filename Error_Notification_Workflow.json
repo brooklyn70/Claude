@@ -22,7 +22,7 @@
     {
       "parameters": {
         "fromEmail": "={{ $credentials.user }}",
-        "toEmail": "YOUR_EMAIL@example.com",
+        "toEmail": "mac.caruso@gmail.com",
         "subject": "={{ $json.subject }}",
         "emailFormat": "text",
         "text": "={{ $json.message }}",
@@ -35,7 +35,7 @@
       "position": [680, 300],
       "credentials": {
         "smtp": {
-          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "id": "BCF4K8oByV2ljP0e",
           "name": "SMTP account"
         }
       }
