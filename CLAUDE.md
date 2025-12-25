@@ -41,7 +41,8 @@ When creating/updating workflow files:
    - v013: Clean architecture refactor - in-memory aggregation for docs, DB only for resume
    - v014: Wire progress counter - Prepare Checkpoint Insert now feeds Count node in parallel
    - v015: Fix checkpoint inserts - use JSONB column type with proper INSERT operation, not escaped strings
-   - v016: Current (Fix progress email spam - add condition to prevent 0 % 5000 = 0 triggering email)
+   - v016: Fix progress email spam - add condition to prevent 0 % 5000 = 0 triggering email
+   - v017: Current (Fix uniqueId undefined - Parse Classification now preserves all paraData fields including uniqueId)
    - ALWAYS increment - never reuse version numbers
 
 4. **Before committing ANY workflow file:**
