@@ -1,0 +1,484 @@
+{
+  "name": "GDRIVE Truth Dedup - v019",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-workflow-001",
+      "name": "Start Workflow",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [240, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "returnAll": true,
+        "filter": {
+          "driveId": {
+            "__rl": true,
+            "mode": "list",
+            "value": "My Drive"
+          },
+          "folderId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "1Xpf_rg9sKxJUgpnPsD94ApwwQR2paP8v"
+          }
+        },
+        "options": {}
+      },
+      "id": "list-truth-files-002",
+      "name": "List Truth Files (_essentials)",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [440, 200],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst filtered = items.filter(item => {\n  const name = (item.json.name || '').toLowerCase();\n  return !['.pdf','.jpg','.jpeg','.png','.gif','.mp4','.xlsx','.csv'].some(ext => name.endsWith(ext));\n});\nconsole.log('Truth files to process:', filtered.length);\nreturn filtered;"
+      },
+      "id": "filter-truth-docs-003",
+      "name": "Filter Truth Docs Only",
+      "type": "n8n-nodes-base.code",
+      "position": [640, 200],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-truth-files-004",
+      "name": "Loop Truth Files",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [840, 200],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "text/plain"
+            }
+          }
+        }
+      },
+      "id": "download-truth-file-005",
+      "name": "Download Truth File",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [1040, 200],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst loopItem = $('Loop Truth Files').first().json;\nconst content = item.json?.data || '';\n\nif (!content || content.length < 10) {\n  console.log('Skipping empty truth file:', loopItem.name);\n  return [];\n}\n\n// Split into paragraphs\nconst paragraphs = content\n  .split(/\\n\\s*\\n/)\n  .map(p => p.trim())\n  .filter(p => p.length > 50);\n\nconsole.log('Truth paragraphs from', loopItem.name, ':', paragraphs.length);\n\nreturn paragraphs.map((para, idx) => ({\n  json: {\n    sourceFile: loopItem.name,\n    fileId: loopItem.id,\n    paragraphIndex: idx,\n    paragraphText: para,\n    isTruth: true\n  }\n}));"
+      },
+      "id": "split-truth-paragraphs-006",
+      "name": "Split Truth to Paragraphs",
+      "type": "n8n-nodes-base.code",
+      "position": [1240, 200],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "collect-truth-007",
+      "name": "Collect All Truth Paragraphs",
+      "type": "n8n-nodes-base.aggregate",
+      "position": [1040, 400],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "returnAll": true,
+        "filter": {
+          "driveId": {
+            "__rl": true,
+            "mode": "list",
+            "value": "My Drive"
+          },
+          "folderId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "1d6Ku8jnaqoXiAuE4s_jjJ9MU-v4ZhfrC"
+          }
+        },
+        "options": {}
+      },
+      "id": "list-source-files-008",
+      "name": "List Source Files (n8n sources)",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [440, 400],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst filtered = items.filter(item => {\n  const name = (item.json.name || '').toLowerCase();\n  return !['.pdf','.jpg','.jpeg','.png','.gif','.mp4','.xlsx','.csv'].some(ext => name.endsWith(ext));\n});\nconsole.log('Source files to process:', filtered.length);\nreturn filtered;"
+      },
+      "id": "filter-source-docs-009",
+      "name": "Filter Source Docs Only",
+      "type": "n8n-nodes-base.code",
+      "position": [640, 400],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-source-files-010",
+      "name": "Loop Source Files",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [840, 400],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "text/plain"
+            }
+          }
+        }
+      },
+      "id": "download-source-file-011",
+      "name": "Download Source File",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [1240, 400],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst loopItem = $('Loop Source Files').first().json;\nconst content = item.json?.data || '';\n\nif (!content || content.length < 10) {\n  console.log('Skipping empty source file:', loopItem.name);\n  return [];\n}\n\n// Split into paragraphs\nconst paragraphs = content\n  .split(/\\n\\s*\\n/)\n  .map(p => p.trim())\n  .filter(p => p.length > 50);\n\nconsole.log('Source paragraphs from', loopItem.name, ':', paragraphs.length);\n\nreturn paragraphs.map((para, idx) => ({\n  json: {\n    sourceFile: loopItem.name,\n    fileId: loopItem.id,\n    paragraphIndex: idx,\n    paragraphText: para,\n    isTruth: false\n  }\n}));"
+      },
+      "id": "split-source-paragraphs-012",
+      "name": "Split Source to Paragraphs",
+      "type": "n8n-nodes-base.code",
+      "position": [1440, 400],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get truth paragraphs from Collect All Truth Paragraphs node\nconst truthData = $('Collect All Truth Paragraphs').first().json.data || [];\nconst truthParagraphs = truthData.map(t => t.paragraphText);\n\nconsole.log('Truth set size:', truthParagraphs.length);\n\n// Get current source paragraph\nconst sourcePara = $input.first().json;\n\n// Compare function (90% similarity threshold)\nfunction areSimilar(str1, str2, threshold = 0.9) {\n  const words1 = new Set(str1.toLowerCase().split(/\\s+/));\n  const words2 = new Set(str2.toLowerCase().split(/\\s+/));\n  const intersection = new Set([...words1].filter(w => words2.has(w)));\n  const union = new Set([...words1, ...words2]);\n  const similarity = union.size ? intersection.size / union.size : 0;\n  return similarity >= threshold;\n}\n\n// Check if this source paragraph is similar to ANY truth paragraph\nconst isDuplicate = truthParagraphs.some(truthPara => areSimilar(sourcePara.paragraphText, truthPara, 0.9));\n\nif (isDuplicate) {\n  console.log('DUPLICATE found, skipping:', sourcePara.sourceFile);\n  return []; // Skip duplicates\n}\n\n// Keep unique paragraphs\nconsole.log('UNIQUE paragraph from:', sourcePara.sourceFile);\nreturn [{ json: sourcePara }];"
+      },
+      "id": "compare-to-truth-013",
+      "name": "Compare to Truth",
+      "type": "n8n-nodes-base.code",
+      "position": [1640, 400],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "collect-unique-014",
+      "name": "Collect Unique Paragraphs",
+      "type": "n8n-nodes-base.aggregate",
+      "position": [1240, 600],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "const uniqueData = $input.first().json.data || [];\n\n// Get stats from earlier nodes\nconst truthData = $('Collect All Truth Paragraphs').first().json.data || [];\nconst sourceFileCount = Object.keys(uniqueData.reduce((acc, item) => { acc[item.sourceFile] = true; return acc; }, {})).length;\n\nconsole.log('📊 WORKFLOW STATS:');\nconsole.log('  - Truth paragraphs loaded:', truthData.length);\nconsole.log('  - Source files with unique content:', sourceFileCount);\nconsole.log('  - Total unique paragraphs found:', uniqueData.length);\n\nlet content = 'L.A. Dolce Vita - Unique Content from n8n Sources\\n';\ncontent += '='.repeat(50) + '\\n\\n';\ncontent += `Truth paragraphs: ${truthData.length}\\n`;\ncontent += `Unique paragraphs found: ${uniqueData.length}\\n`;\ncontent += `Source files with unique content: ${sourceFileCount}\\n\\n`;\ncontent += '='.repeat(50) + '\\n\\n';\n\nif (uniqueData.length === 0) {\n  content += 'No unique content found. All source paragraphs match truth documents.\\n';\n  return [{ json: { content, fileName: 'n8n_unique_content' } }];\n}\n\n// Group by source file\nconst byFile = {};\nuniqueData.forEach(item => {\n  const file = item.sourceFile || 'Unknown';\n  if (!byFile[file]) byFile[file] = [];\n  byFile[file].push(item.paragraphText);\n});\n\n// Build output\nObject.keys(byFile).sort().forEach(fileName => {\n  content += `\\n### FROM: ${fileName} (${byFile[fileName].length} paragraphs) ###\\n\\n`;\n  byFile[fileName].forEach(para => {\n    content += para + '\\n\\n---\\n\\n';\n  });\n});\n\nreturn [{ json: { content, fileName: 'n8n_unique_content' } }];"
+      },
+      "id": "build-final-doc-015",
+      "name": "Build Final Document",
+      "type": "n8n-nodes-base.code",
+      "position": [1440, 600],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "name": "={{ $json.fileName }}",
+        "fileContent": "={{ $json.content }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1hv8VkUMcR6kl0miZ4LqfVvV64iszfq5y"
+        },
+        "options": {
+          "mimeType": "application/vnd.google-apps.document"
+        }
+      },
+      "id": "create-result-doc-016",
+      "name": "Create Result Document",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [1640, 600],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $credentials.user }}",
+        "toEmail": "mac.caruso@gmail.com",
+        "subject": "=✅ Truth Dedup Complete - GDRIVE",
+        "emailFormat": "text",
+        "text": "=Deduplication complete!\\n\\nWorkflow: {{ $workflow.name }}\\nExecution ID: {{ $execution.id }}\\nCompleted: {{ $now.format('yyyy-MM-dd HH:mm:ss') }}\\n\\nResult document created in n8n sources folder.\\nUnique paragraphs found: {{ $('Collect Unique Paragraphs').first().json.data.length }}",
+        "options": {}
+      },
+      "id": "email-success-017",
+      "name": "Email Success Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [1840, 600],
+      "typeVersion": 2.1,
+      "credentials": {
+        "smtp": {
+          "id": "BCF4K8oByV2ljP0e",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Start Workflow": {
+      "main": [
+        [
+          {
+            "node": "List Truth Files (_essentials)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Truth Files (_essentials)": {
+      "main": [
+        [
+          {
+            "node": "Filter Truth Docs Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Truth Docs Only": {
+      "main": [
+        [
+          {
+            "node": "Loop Truth Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Truth Files": {
+      "main": [
+        [
+          {
+            "node": "Collect All Truth Paragraphs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Truth File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Truth File": {
+      "main": [
+        [
+          {
+            "node": "Split Truth to Paragraphs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Truth to Paragraphs": {
+      "main": [
+        [
+          {
+            "node": "Loop Truth Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Source Files (n8n sources)": {
+      "main": [
+        [
+          {
+            "node": "Filter Source Docs Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Source Docs Only": {
+      "main": [
+        [
+          {
+            "node": "Loop Source Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Source Files": {
+      "main": [
+        [
+          {
+            "node": "Collect Unique Paragraphs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Source File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Source File": {
+      "main": [
+        [
+          {
+            "node": "Split Source to Paragraphs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Source to Paragraphs": {
+      "main": [
+        [
+          {
+            "node": "Compare to Truth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare to Truth": {
+      "main": [
+        [
+          {
+            "node": "Loop Source Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect All Truth Paragraphs": {
+      "main": [
+        [
+          {
+            "node": "List Source Files (n8n sources)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Unique Paragraphs": {
+      "main": [
+        [
+          {
+            "node": "Build Final Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Final Document": {
+      "main": [
+        [
+          {
+            "node": "Create Result Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Result Document": {
+      "main": [
+        [
+          {
+            "node": "Email Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-12-27T09:56:00.000Z",
+  "versionId": "v018"
+}

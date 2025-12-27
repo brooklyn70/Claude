@@ -43,7 +43,8 @@ When creating/updating workflow files:
    - v015: Fix checkpoint inserts - use JSONB column type with proper INSERT operation, not escaped strings
    - v016: Fix progress email spam - add condition to prevent 0 % 5000 = 0 triggering email
    - v017: Fix uniqueId undefined - Parse Classification now preserves all paraData fields including uniqueId
-   - v018: Current (Complete rewrite - truth-centric dedup comparing n8n sources against _essentials folder, no AI classification)
+   - v018: Complete rewrite - truth-centric dedup comparing n8n sources against _essentials folder, no AI classification
+   - v019: Current (Fix output folder to n8n Results, add detailed processing stats logging)
    - ALWAYS increment - never reuse version numbers
 
 4. **Before committing ANY workflow file:**
