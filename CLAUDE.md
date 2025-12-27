@@ -1,7 +1,7 @@
 # Claude Context File
 
 ## Project Overview
-n8n workflow automation for L.A. Dolce Vita screenplay deduplication and classification project. Processing 4800+ Google Drive documents, classifying them as SCENE/EPISODE/OTHER using AI, with deduplication to remove redundant content.
+n8n workflow automation for L.A. Dolce Vita screenplay deduplication project. Compares documents in "n8n sources" folder against truth documents in "_essentials" folder to identify unique content not already in the final versions.
 
 ## Working Preferences
 
@@ -42,7 +42,8 @@ When creating/updating workflow files:
    - v014: Wire progress counter - Prepare Checkpoint Insert now feeds Count node in parallel
    - v015: Fix checkpoint inserts - use JSONB column type with proper INSERT operation, not escaped strings
    - v016: Fix progress email spam - add condition to prevent 0 % 5000 = 0 triggering email
-   - v017: Current (Fix uniqueId undefined - Parse Classification now preserves all paraData fields including uniqueId)
+   - v017: Fix uniqueId undefined - Parse Classification now preserves all paraData fields including uniqueId
+   - v018: Current (Complete rewrite - truth-centric dedup comparing n8n sources against _essentials folder, no AI classification)
    - ALWAYS increment - never reuse version numbers
 
 4. **Before committing ANY workflow file:**
