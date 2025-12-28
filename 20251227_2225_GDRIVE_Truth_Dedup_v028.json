@@ -47,7 +47,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst filtered = items.filter(item => {\n  const name = (item.json.name || '').toLowerCase();\n  return !['.pdf','.jpg','.jpeg','.png','.gif','.mp4','.xlsx','.csv'].some(ext => name.endsWith(ext));\n});\nconsole.log('Truth files to process:', filtered.length);\nreturn filtered;"
+        "jsCode": "// Clear truth data from previous run\nconst staticData = this.getWorkflowStaticData('global');\nstaticData.truthParagraphs = [];\n\nconst items = $input.all();\nconst filtered = items.filter(item => {\n  const name = (item.json.name || '').toLowerCase();\n  return !['.pdf','.jpg','.jpeg','.png','.gif','.mp4','.xlsx','.csv'].some(ext => name.endsWith(ext));\n});\nconsole.log('Truth files to process:', filtered.length);\nreturn filtered;"
       },
       "id": "filter-truth-docs-003",
       "name": "Filter Truth Docs Only",
