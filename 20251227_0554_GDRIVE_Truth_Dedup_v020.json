@@ -274,40 +274,6 @@
     },
     {
       "parameters": {
-        "operation": "create",
-        "name": "={{ $json.fileName }}",
-        "fileContent": "={{ $json.content }}",
-        "driveId": {
-          "__rl": true,
-          "mode": "list",
-          "value": "My Drive"
-        },
-        "folderId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "1hv8VkUMcR6kl0miZ4LqfVvV64iszfq5y"
-        },
-        "options": {
-          "mimeType": "application/vnd.google-apps.document"
-        }
-      },
-      "id": "create-result-doc-016",
-      "name": "Create Result Document",
-      "type": "n8n-nodes-base.googleDrive",
-      "position": [
-        1640,
-        600
-      ],
-      "typeVersion": 3,
-      "credentials": {
-        "googleDriveOAuth2Api": {
-          "id": "0wP4KdHht1F3GzDE",
-          "name": "Google Drive account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "fromEmail": "={{ $credentials.user }}",
         "toEmail": "mac.caruso@gmail.com",
         "subject": "=\u2705 Truth Dedup Complete - GDRIVE",
@@ -359,6 +325,103 @@
       ],
       "typeVersion": 1,
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://docs.googleapis.com/v1/documents",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: $json.fileName }) }}",
+        "options": {}
+      },
+      "id": "create-empty-doc-020",
+      "name": "Create Empty Doc",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1640,
+        600
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const docInfo = $input.first().json;\nconst content = $('Build Final Document').first().json.content;\n\nreturn [{\n  json: {\n    documentId: docInfo.documentId,\n    content: content,\n    name: docInfo.title\n  }\n}];"
+      },
+      "id": "merge-doc-data-021",
+      "name": "Merge Doc Data",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1840,
+        600
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"https://docs.googleapis.com/v1/documents/\" + $json.documentId + \":batchUpdate\" }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ requests: [{ insertText: { text: $json.content, location: { index: 1 } } }] }) }}",
+        "options": {}
+      },
+      "id": "insert-content-022",
+      "name": "Insert Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2040,
+        600
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "update",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.documentId }}"
+        },
+        "updateFields": {
+          "parentId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "1hv8VkUMcR6kl0miZ4LqfVvV64iszfq5y"
+          }
+        }
+      },
+      "id": "move-to-results-023",
+      "name": "Move to Results",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        2240,
+        600
+      ],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "0wP4KdHht1F3GzDE",
+          "name": "Google Drive account"
+        }
+      }
     }
   ],
   "connections": {
@@ -534,7 +597,7 @@
       "main": [
         [
           {
-            "node": "Create Result Document",
+            "node": "Create Empty Doc",
             "type": "main",
             "index": 0
           }
@@ -568,6 +631,50 @@
         [
           {
             "node": "Split Source to Paragraphs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Empty Doc": {
+      "main": [
+        [
+          {
+            "node": "Merge Doc Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Doc Data": {
+      "main": [
+        [
+          {
+            "node": "Insert Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Content": {
+      "main": [
+        [
+          {
+            "node": "Move to Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Results": {
+      "main": [
+        [
+          {
+            "node": "Email Success Notification",
             "type": "main",
             "index": 0
           }
